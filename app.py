@@ -7,7 +7,9 @@ from PIL import Image
 st.title("🍎 Fruit Classification App")
 
 # Modeli yükle
-@st.cache_resource
+#streamlit normal bir python scripti gibi çalışmaz. dosya yükleyip, bir şeyler değiştikçe streamlit dosyanın tamamını baştan sona tekrar çalıştırır
+@st.cache_resource  #fonksiyon çıktısını hafızada tutulup aynı şeyin yeniden hesaplanmasını önler
+#ilk çalışmada model yüklenir ram'e alınır sonraki interactionlarda yeniden yüklenmez
 def load_model():
     return tf.keras.models.load_model("fruit_model_mobilenet.keras")
 
