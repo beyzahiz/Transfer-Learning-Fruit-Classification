@@ -11,7 +11,7 @@ st.title("🍎 Fruit Classification App")
 @st.cache_resource  #fonksiyon çıktısını hafızada tutulup aynı şeyin yeniden hesaplanmasını önler
 #ilk çalışmada model yüklenir ram'e alınır sonraki interactionlarda yeniden yüklenmez
 def load_model():
-    return tf.keras.models.load_model("fruit_model_streamlit.h5")
+    return tf.keras.models.load_model("fruit_model_streamlit.h5", compile=False)
 
 model = load_model()
 
