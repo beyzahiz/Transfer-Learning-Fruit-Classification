@@ -6,22 +6,22 @@ from PIL import Image
 from tensorflow.keras.applications import MobileNetV2
 from tensorflow.keras import layers, models
 
-# --- SAYFA AYARLARI ---
+# --- 1. SAYFA AYARLARI ---
 st.set_page_config(
     page_title="AI Fruit Classifier", 
     page_icon="🍎", 
     layout="centered"
 )
 
-# --- TASARIM VE BAŞLIK ---
+# --- 2. TASARIM VE BAŞLIK ---
 st.title("🍎 AI Fruit Classifier")
-st.write("Yapay zeka ile meyveleri saniyeler içinde tanıyın. Bir fotoğraf yükleyin ve sonucu görün!")
+st.write("Yapay zeka ile meyveleri saniyeler içinde tanıyın. Bir fotoğraf yükleyin ve modelin analizini görün!")
 st.divider()
 
-# --- MODEL YÜKLEME ---
+# --- 3. MODEL YÜKLEME (Versiyon Uyumlu Strateji) ---
 @st.cache_resource
 def load_my_model():
-    # Eğitimde kullandığın boyut 100x100 ise (100, 100, 3) yapmalısın!
+    # Eğitimde kullanılan mimari (100x100 giriş boyutu)
     base_model = MobileNetV2(weights=None, include_top=False, input_shape=(100, 100, 3))
     
     model = models.Sequential([
@@ -31,37 +31,36 @@ def load_my_model():
         layers.Dense(10, activation='softmax') 
     ])
     
-    # Dosya adının birebir aynı olduğundan emin ol
+    # Colab'dan indirip GitHub'a yüklediğin ağırlık dosyası (.h5 uzantılı)
     model.load_weights("fruit_model_weights.weights.h5")
     return model
 
 try:
     model = load_my_model()
 except Exception as e:
-    st.error(f"Model yüklenirken bir sorun oluştu. Lütfen dosya adını kontrol edin.")
+    st.error("Model yüklenemedi. Lütfen ağırlık dosyasının GitHub'da olduğundan emin olun.")
 
-# --- SINIF İSİMLERİ ---
+# --- 4. SINIF İSİMLERİ ---
 class_names = [
     'Apple Granny Smith', 'Cauliflower', 'Cherry', 'Cucumber',
     'Mandarine', 'Nut', 'Pear Williams', 'Pepper Yellow',
     'Pineapple', 'Raspberry'
 ]
 
-# --- DOSYA YÜKLEME VE TAHMİN ---
+# --- 5. DOSYA YÜKLEME VE ANALİZ ---
 uploaded_file = st.file_uploader("Bir meyve resmi sürükleyin veya seçin", type=["jpg","png","jpeg"])
 
 if uploaded_file is not None:
-    # Resmi oku ve göster
+    # Resmi oku
     image = Image.open(uploaded_file).convert("RGB")
     
-    # İki sütunlu yapı (Sol: Resim, Sağ: Tahmin Özeti)
+    # Görsel Düzeni (İki Sütun)
     col1, col2 = st.columns([1, 1])
     
     with col1:
         st.image(image, caption="Yüklenen Görsel", use_container_width=True)
 
-    # Preprocessing
-    # Eğitim boyutun 100x100 ise burayı 100, 100 bırak
+    # Preprocessing (Eğitimle aynı: 100x100)
     image_resized = image.resize((100, 100)) 
     img_array = np.array(image_resized) / 255.0
     img_array = np.expand_dims(img_array, axis=0)
@@ -76,31 +75,38 @@ if uploaded_file is not None:
     with col2:
         st.subheader("Analiz Sonucu")
         st.success(f"**Tahmin:** {predicted_class}")
-        st.metric(label="Güven Oranı", value=f"%{confidence*100:.2f}")
+        st.metric(label="Accuracy: ", value=f"%{confidence*100:.2f}")
         st.progress(float(confidence))
+        
+        st.divider()
+        
+        # --- TOP-3 TAHMİN BÖLÜMÜ ---
+        st.write("**En Olası 3 Tahmin:**")
+        top3_idx = prediction[0].argsort()[-3:][::-1]
+        
+        for i in top3_idx:
+            score = prediction[0][i] * 100
+            st.write(f"**{class_names[i]}**: %{score:.1f}")
+            st.progress(float(prediction[0][i]))
 
     st.divider()
 
-    # --- PROBABILITY CHART (PROFESYONEL GRAFİK) ---
-    st.subheader("📊 Sınıf Bazlı Olasılık Dağılımı")
+    # --- 6. PROBABILITY CHART (GRAFİKSEL GÖSTERİM) ---
+    st.subheader("📊 Tüm Olasılık Dağılımları")
     
-    # Grafik verisini hazırla
+    # Grafik verisini DataFrame olarak hazırla
     chart_data = pd.DataFrame(
         prediction[0], 
         index=class_names, 
         columns=["Olasılık"]
     )
     
-    # Çubuk grafik oluştur
+    # Çubuk grafik
     st.bar_chart(chart_data)
 
-    # Detaylı Tablo (Opsiyonel)
-    with st.expander("Tüm olasılık detaylarını gör"):
+    # Detay Tablosu
+    with st.expander("Tüm matematiksel detayları gör"):
         st.table(chart_data)
 
 else:
     st.info("Lütfen analiz için bir resim yükleyin.")
-
-# --- FOOTER ---
-st.markdown("---")
-st.caption("Geliştirici: Beyza | Transfer Learning Project")
