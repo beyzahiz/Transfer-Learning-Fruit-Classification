@@ -5,6 +5,7 @@ import pandas as pd
 from PIL import Image
 from tensorflow.keras.applications import MobileNetV2
 from tensorflow.keras import layers, models
+from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
 
 # --- 1. SAYFA AYARLARI ---
 st.set_page_config(
@@ -15,14 +16,14 @@ st.set_page_config(
 
 # --- 2. TASARIM VE BAŞLIK ---
 st.title("🍎 AI Fruit Classifier")
-st.write("Yapay zeka ile meyveleri saniyeler içinde tanıyın. Bir fotoğraf yükleyin ve modelin analizini görün!")
+st.write("Yapay zeka ile meyveleri saniyeler içinde tanıyın.")
 st.divider()
 
-# --- 3. MODEL YÜKLEME (Versiyon Uyumlu Strateji) ---
+# --- 3. MODEL YÜKLEME ---
 @st.cache_resource
 def load_my_model():
-    # Eğitimde kullanılan mimari (100x100 giriş boyutu)
-    base_model = MobileNetV2(weights=None, include_top=False, input_shape=(100, 100, 3))
+    # HEDEF BOYUT GÜNCELLENDİ: Colab'daki gibi 224x224 yapıldı
+    base_model = MobileNetV2(weights=None, include_top=False, input_shape=(224, 224, 3))
     
     model = models.Sequential([
         base_model,
@@ -31,41 +32,49 @@ def load_my_model():
         layers.Dense(10, activation='softmax') 
     ])
     
-    # Colab'dan indirip GitHub'a yüklediğin ağırlık dosyası (.h5 uzantılı)
+    # Dosya adını kontrol et (Colab'dan indirdiğin weights dosyası)
     model.load_weights("fruit_model_weights.weights.h5")
     return model
 
 try:
     model = load_my_model()
 except Exception as e:
-    st.error("Model yüklenemedi. Lütfen ağırlık dosyasının GitHub'da olduğundan emin olun.")
+    st.error(f"Model yüklenemedi: {e}")
 
-# --- 4. SINIF İSİMLERİ ---
+# --- 4. SINIF İSİMLERİ (Colab ile Birebir Aynı Sıra) ---
 class_names = [
-    'Apple Granny Smith', 'Cauliflower', 'Cherry', 'Cucumber',
-    'Mandarine', 'Nut', 'Pear Williams', 'Pepper Yellow',
-    'Pineapple', 'Raspberry'
+    'Apple Granny Smith 1', 
+    'Cauliflower 1', 
+    'Cherry 5', 
+    'Cucumber 11', 
+    'Mandarine 1', 
+    'Nut 4', 
+    'Pear Williams 1', 
+    'Pepper Yellow 1', 
+    'Pineapple 1', 
+    'Raspberry 2'
 ]
 
 # --- 5. DOSYA YÜKLEME VE ANALİZ ---
 uploaded_file = st.file_uploader("Bir meyve resmi sürükleyin veya seçin", type=["jpg","png","jpeg"])
 
 if uploaded_file is not None:
-    # Resmi oku
     image = Image.open(uploaded_file).convert("RGB")
     
-    # Görsel Düzeni (İki Sütun)
     col1, col2 = st.columns([1, 1])
     
     with col1:
         st.image(image, caption="Yüklenen Görsel", use_container_width=True)
 
-    # Preprocessing (Eğitimle aynı: 100x100)
-    image_resized = image.resize((100, 100)) 
-    img_array = np.array(image_resized) / 255.0
+    # PREPROCESSING GÜNCELLEMELERİ
+    # 1. Boyut Colab ile aynı (224, 224) yapıldı
+    image_resized = image.resize((224, 224)) 
+    img_array = np.array(image_resized)
+    
+    # 2. Sadece 255'e bölmek yerine MobileNet'in kendi fonksiyonu eklendi
     img_array = np.expand_dims(img_array, axis=0)
+    img_array = preprocess_input(img_array)
 
-    # Tahmin Süreci
     with st.spinner('Yapay zeka analiz ediyor...'):
         prediction = model.predict(img_array)
         index = np.argmax(prediction)
@@ -73,15 +82,13 @@ if uploaded_file is not None:
         confidence = prediction[0][index]
 
     with col2:
-        st.subheader("Analiz Sonucu")
+        st.subheader("🧐 Analiz Sonucu")
         st.success(f"**Tahmin:** {predicted_class}")
-        st.metric(label="Accuracy: ", value=f"%{confidence*100:.2f}")
+        st.metric(label="Güven Skoru", value=f"%{confidence*100:.2f}")
         st.progress(float(confidence))
         
         st.divider()
-        
-        # --- TOP-3 TAHMİN BÖLÜMÜ ---
-        st.write("**En Olası 3 Tahmin:**")
+        st.write("🔍 **En Olası 3 Tahmin:**")
         top3_idx = prediction[0].argsort()[-3:][::-1]
         
         for i in top3_idx:
@@ -90,23 +97,9 @@ if uploaded_file is not None:
             st.progress(float(prediction[0][i]))
 
     st.divider()
-
-    # --- 6. PROBABILITY CHART (GRAFİKSEL GÖSTERİM) ---
     st.subheader("📊 Tüm Olasılık Dağılımları")
-    
-    # Grafik verisini DataFrame olarak hazırla
-    chart_data = pd.DataFrame(
-        prediction[0], 
-        index=class_names, 
-        columns=["Olasılık"]
-    )
-    
-    # Çubuk grafik
+    chart_data = pd.DataFrame(prediction[0], index=class_names, columns=["Olasılık"])
     st.bar_chart(chart_data)
-
-    # Detay Tablosu
-    with st.expander("Tüm matematiksel detayları gör"):
-        st.table(chart_data)
 
 else:
     st.info("Lütfen analiz için bir resim yükleyin.")
