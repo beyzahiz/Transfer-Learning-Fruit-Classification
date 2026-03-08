@@ -16,13 +16,13 @@ st.set_page_config(
 
 # --- 2. TASARIM VE BAŞLIK ---
 st.title("🍎 AI Fruit Classifier")
-st.write("Yapay zeka ile meyveleri saniyeler içinde tanıyın.")
+st.write("Yapay zeka ile meyveleri saniyeler içinde tanıyın. Bir fotoğraf yükleyin ve modelin analizini görün.")
 st.divider()
 
 # --- 3. MODEL YÜKLEME ---
 @st.cache_resource
 def load_my_model():
-    # HEDEF BOYUT GÜNCELLENDİ: Colab'daki gibi 224x224 yapıldı
+    # HEDEF BOYUT: Colab'daki gibi 224x224
     base_model = MobileNetV2(weights=None, include_top=False, input_shape=(224, 224, 3))
     
     model = models.Sequential([
@@ -32,7 +32,7 @@ def load_my_model():
         layers.Dense(10, activation='softmax') 
     ])
     
-    # Dosya adını kontrol et (Colab'dan indirdiğin weights dosyası)
+    # Ağırlıkları yükle
     model.load_weights("fruit_model_weights.weights.h5")
     return model
 
@@ -66,13 +66,12 @@ if uploaded_file is not None:
     with col1:
         st.image(image, caption="Yüklenen Görsel", use_container_width=True)
 
-    # PREPROCESSING GÜNCELLEMELERİ
-    # 1. Boyut Colab ile aynı (224, 224) yapıldı
+    # Preprocessing
     image_resized = image.resize((224, 224)) 
     img_array = np.array(image_resized)
-    
-    # 2. Sadece 255'e bölmek yerine MobileNet'in kendi fonksiyonu eklendi
     img_array = np.expand_dims(img_array, axis=0)
+    
+    # NOT: Eğer tahminler hala yanlışsa bu satırı img_array = img_array / 255.0 ile değiştirip dene.
     img_array = preprocess_input(img_array)
 
     with st.spinner('Yapay zeka analiz ediyor...'):
@@ -82,13 +81,13 @@ if uploaded_file is not None:
         confidence = prediction[0][index]
 
     with col2:
-        st.subheader("🧐 Analiz Sonucu")
+        st.subheader("Analiz Sonucu")
         st.success(f"**Tahmin:** {predicted_class}")
-        st.metric(label="Güven Skoru", value=f"%{confidence*100:.2f}")
+        st.metric(label="Accuracy: ", value=f"%{confidence*100:.2f}")
         st.progress(float(confidence))
         
         st.divider()
-        st.write("🔍 **En Olası 3 Tahmin:**")
+        st.write("**En Olası 3 Tahmin:**")
         top3_idx = prediction[0].argsort()[-3:][::-1]
         
         for i in top3_idx:
@@ -97,9 +96,17 @@ if uploaded_file is not None:
             st.progress(float(prediction[0][i]))
 
     st.divider()
+    
+    # --- 6. GRAFİK VE MATEMATİKSEL DETAYLAR ---
     st.subheader("📊 Tüm Olasılık Dağılımları")
     chart_data = pd.DataFrame(prediction[0], index=class_names, columns=["Olasılık"])
+    
     st.bar_chart(chart_data)
+
+    # Detay Tablosu (Geri eklenen kısım)
+    with st.expander("Tüm matematiksel detayları gör"):
+        st.write("Her sınıf için hesaplanan ham olasılık değerleri:")
+        st.table(chart_data)
 
 else:
     st.info("Lütfen analiz için bir resim yükleyin.")
