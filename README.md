@@ -10,7 +10,7 @@ Bu proje, derin öğrenme ve **Transfer Learning** (Transferli Öğrenme) teknik
 
 ## 🌐 Live Demo
 Uygulamayı tarayıcınızda hemen deneyin:  
-👉 **[Fruit Classification Web App]([https://transfer-learning-fruit-classification.streamlit.app](https://transfer-learning-fruit-classification-lkuw4qf9tyjw9kzvd6uad3.streamlit.app/))** 
+👉 **[Fruit Classification Web App](https://transfer-learning-fruit-classification-lkuw4qf9tyjw9kzvd6uad3.streamlit.app/)** 
 
 ---
 
